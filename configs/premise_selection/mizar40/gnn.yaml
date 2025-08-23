@@ -31,4 +31,4 @@ trainer:
 data_config:
   data_options:
     mongo: false
-    pickle_path: /kaggle/working/bait/mizar_pickles
+    pickle_path: /kaggle/working/mizar_data/mizar_pickles
