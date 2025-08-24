@@ -52,10 +52,19 @@ class PremiseDataModule(LightningDataModule):
         return transform_expr(expr, getattr(self.config, 'type', None), self.vocab, self.config)
 
     def collate_data(self, batch):
-        y = torch.LongTensor([b['y'] for b in batch])
-        data_1 = self.list_to_data([b['conj'] for b in batch])
-        data_2 = self.list_to_data([b['stmt'] for b in batch])
+        # If dataset returns tuples like (sample_dict, y)
+        if isinstance(batch[0], tuple):
+            samples, labels = zip(*batch)
+            y = torch.LongTensor(labels)
+            data_1 = self.list_to_data([s['conj'] for s in samples])
+            data_2 = self.list_to_data([s['stmt'] for s in samples])
+        else:
+            # If dataset already returns dicts with 'y'
+            y = torch.LongTensor([b['y'] for b in batch])
+            data_1 = self.list_to_data([b['conj'] for b in batch])
+            data_2 = self.list_to_data([b['stmt'] for b in batch])
         return data_1, data_2, y
+
 
     def train_dataloader(self):
         return DataLoader(
