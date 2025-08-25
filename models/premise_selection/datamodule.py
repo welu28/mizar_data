@@ -50,19 +50,11 @@ class PremiseDataModule(LightningDataModule):
         return transform_expr(expr, getattr(self.config, 'type', None), self.vocab, self.config)
 
     def collate_data(self, batch):
-        # Normalize batch items
-        if isinstance(batch[0], tuple):
-            # Dataset returns (sample_dict, label)
-            samples, labels = zip(*batch)
-            y = torch.LongTensor(labels)
-        elif isinstance(batch[0], dict) and 'y' in batch[0]:
-            samples = batch
-            y = torch.LongTensor([b['y'] for b in batch])
-        else:
-            raise ValueError("Unexpected dataset format for batch items")
-
-        data_1 = self.list_to_data([s['conj'] for s in samples])
-        data_2 = self.list_to_data([s['stmt'] for s in samples])
+        # Expect each dataset item to be a tuple: (conj, stmt, y)
+        conj_list, stmt_list, y_list = zip(*batch)
+        data_1 = self.list_to_data(conj_list)
+        data_2 = self.list_to_data(stmt_list)
+        y = torch.LongTensor(y_list)
         return data_1, data_2, y
 
     def train_dataloader(self):
