@@ -25,9 +25,9 @@ trainer:
   strategy: auto
   accelerator: gpu     
   devices: 1
-  # max_epochs: 30      
+  max_epochs: 5      
   log_every_n_steps: 20
-  fast_dev_run: true    
+  #fast_dev_run: true    
 
 data_config:
   data_options:
