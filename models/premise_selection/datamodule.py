@@ -12,8 +12,7 @@ class PremiseDataModule(LightningDataModule):
         self.config = config
 
     def setup(self, stage: str = None) -> None:
-        # Use pickle_path from config
-        data_dir = self.config.data_options['pickle_path']  # path to your pickle folder
+        data_dir = self.config.data_options['pickle_path']
 
         # Load pickles
         with open(f"{data_dir}/expr_dict.pkl", "rb") as f:
@@ -38,13 +37,12 @@ class PremiseDataModule(LightningDataModule):
 
     def transfer_batch_to_device(self, batch, device: torch.device, dataloader_idx: int):
         if getattr(self.config, 'type', None) == 'custom':
-            pass
-        else:
-            batch = super().transfer_batch_to_device(batch, device, dataloader_idx)
-        return batch
+            return batch
+        return super().transfer_batch_to_device(batch, device, dataloader_idx)
 
     def list_to_data(self, data_list):
-        # always use in-memory dictionary
+        if not data_list:
+            return None
         batch = [self.expr_dict[d] for d in data_list]
         return transform_batch(batch, config=self.config)
 
@@ -52,19 +50,20 @@ class PremiseDataModule(LightningDataModule):
         return transform_expr(expr, getattr(self.config, 'type', None), self.vocab, self.config)
 
     def collate_data(self, batch):
-        # If dataset returns tuples like (sample_dict, y)
+        # Normalize batch items
         if isinstance(batch[0], tuple):
+            # Dataset returns (sample_dict, label)
             samples, labels = zip(*batch)
             y = torch.LongTensor(labels)
-            data_1 = self.list_to_data([s['conj'] for s in samples])
-            data_2 = self.list_to_data([s['stmt'] for s in samples])
-        else:
-            # If dataset already returns dicts with 'y'
+        elif isinstance(batch[0], dict) and 'y' in batch[0]:
+            samples = batch
             y = torch.LongTensor([b['y'] for b in batch])
-            data_1 = self.list_to_data([b['conj'] for b in batch])
-            data_2 = self.list_to_data([b['stmt'] for b in batch])
-        return data_1, data_2, y
+        else:
+            raise ValueError("Unexpected dataset format for batch items")
 
+        data_1 = self.list_to_data([s['conj'] for s in samples])
+        data_2 = self.list_to_data([s['stmt'] for s in samples])
+        return data_1, data_2, y
 
     def train_dataloader(self):
         return DataLoader(
