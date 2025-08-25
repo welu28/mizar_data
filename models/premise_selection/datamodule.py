@@ -13,8 +13,6 @@ class PremiseDataModule(LightningDataModule):
 
     def setup(self, stage: str = None) -> None:
         data_dir = self.config.data_options['pickle_path']
-
-        # Load pickles
         with open(f"{data_dir}/expr_dict.pkl", "rb") as f:
             expr_dict = pickle.load(f)
         with open(f"{data_dir}/train.pkl", "rb") as f:
@@ -26,11 +24,9 @@ class PremiseDataModule(LightningDataModule):
         with open(f"{data_dir}/vocab.pkl", "rb") as f:
             vocab = pickle.load(f)
 
-        # Transform expressions
         self.vocab = vocab
         self.expr_dict = {k: self.to_data(v) for k, v in expr_dict.items()}
 
-        # Splits
         self.train_data = train_pairs
         self.val_data = val_pairs
         self.test_data = test_pairs
@@ -50,7 +46,7 @@ class PremiseDataModule(LightningDataModule):
         return transform_expr(expr, getattr(self.config, 'type', None), self.vocab, self.config)
 
     def collate_data(self, batch):
-        # Expect each dataset item to be a tuple: (conj, stmt, y)
+        # dataset format is: (conj, stmt, y)
         conj_list, stmt_list, y_list = zip(*batch)
         data_1 = self.list_to_data(conj_list)
         data_2 = self.list_to_data(stmt_list)
