@@ -11,13 +11,24 @@ def load_pickle(path):
 def load_embeddings(expr_dict, vocab):
     embeddings = {}
     for fid, expr in expr_dict.items():
-        # TODO: replace with real AST/Transformer embedding
         embeddings[fid] = torch.randn(128)
     return embeddings
 
+def walk_ast(expr, parent_id, nodes, edges, next_id):
+    current_id = next_id
+    nodes[current_id] = {"label": str(expr), "type": "ast"}
+    if parent_id is not None:
+        edges.append((parent_id, current_id))
+    if isinstance(expr, (list, tuple)):
+        for child in expr:
+            next_id = walk_ast(child, current_id, nodes, edges, next_id + 1)
+    return next_id
+
 def build_ast_edges(fid, expr):
-    # TODO: return AST edges (src, dst) for this formula
-    return []
+    nodes = {}
+    edges = []
+    walk_ast(expr, None, nodes, edges, 0)
+    return edges
 
 def compute_co_usage(pairs):
     co_usage = defaultdict(int)
@@ -37,28 +48,23 @@ def build_cgf(conjecture, premises, embeddings, expr_dict, co_usage):
     nodes = {}
     edges = []
 
-    # add conjecture node
     nodes[conjecture] = {
         "embedding": embeddings[conjecture],
         "type": "conjecture"
     }
 
-    # add premises
     for p in premises:
         nodes[p] = {
             "embedding": embeddings[p],
             "type": "premise"
         }
 
-        # AST edges for this premise
         for (u, v) in build_ast_edges(p, expr_dict[p]):
             edges.append({"src": u, "dst": v, "type": "ast", "weight": 1.0})
 
-        # conjecture–premise edge
         edges.append({"src": conjecture, "dst": p,
                       "type": "conjecture-premise", "weight": 1.0})
 
-    # add co-usage edges
     for (p1, p2) in combinations(premises, 2):
         if (p1, p2) in co_usage:
             weight = float(co_usage[(p1, p2)])
