@@ -14,21 +14,31 @@ def load_embeddings(expr_dict, vocab):
         embeddings[fid] = torch.randn(128)
     return embeddings
 
+class ASTNode:
+    def __init__(self, label, node_type="ast"):
+        self.label = label
+        self.type = node_type
+        self.children = []
+
 def walk_ast(expr, parent_id, nodes, edges, next_id):
     current_id = next_id
-    nodes[current_id] = {"label": str(expr), "type": "ast"}
+    node = ASTNode(str(expr), "ast")
+    nodes[current_id] = node
+
     if parent_id is not None:
         edges.append((parent_id, current_id))
+
     if isinstance(expr, (list, tuple)):
         for child in expr:
             next_id = walk_ast(child, current_id, nodes, edges, next_id + 1)
+
     return next_id
 
 def build_ast_edges(fid, expr):
     nodes = {}
     edges = []
     walk_ast(expr, None, nodes, edges, 0)
-    return edges
+    return nodes, edges
 
 def compute_co_usage(pairs):
     co_usage = defaultdict(int)
@@ -59,8 +69,19 @@ def build_cgf(conjecture, premises, embeddings, expr_dict, co_usage):
             "type": "premise"
         }
 
-        for (u, v) in build_ast_edges(p, expr_dict[p]):
-            edges.append({"src": u, "dst": v, "type": "ast", "weight": 1.0})
+        ast_nodes, ast_edges = build_ast_edges(p, expr_dict[p])
+        for nid, ast_node in ast_nodes.items():
+            nodes[(p, nid)] = {
+                "label": ast_node.label,
+                "type": ast_node.type
+            }
+        for (u, v) in ast_edges:
+            edges.append({
+                "src": (p, u),
+                "dst": (p, v),
+                "type": "ast",
+                "weight": 1.0
+            })
 
         edges.append({"src": conjecture, "dst": p,
                       "type": "conjecture-premise", "weight": 1.0})
